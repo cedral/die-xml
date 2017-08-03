@@ -38,7 +38,6 @@ private:
 	TagStack tags;
 	enum {prologue, doctype, start_document, inside_document, end_document} parser_state;
 
-	void tagNameAdd(char s);
 public:
 	Parser();
 	Parser & startDocument(start_tag_event fn);

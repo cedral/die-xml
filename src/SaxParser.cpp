@@ -5,11 +5,6 @@ namespace sax {
 
 // http://www.w3.org/TR/REC-xml/
 
-void Parser::tagNameAdd(char s)
-{ 
-	tagName.push_back(s); 
-};
-
 static std::string const S = " \t\n\r";
 static std::string const NameStartChar = "a-zA-Z_:";
 
@@ -32,7 +27,11 @@ Parser::Parser():
 		event_state = end_tag; 
 	};
 	using namespace std;
-	auto addTagName = bind1st(mem_fun(&Parser::tagNameAdd),this);
+
+        auto addTagName = [this](char s)
+        {
+          tagName.push_back(s);
+        };
 
 	using namespace automata;
 
@@ -47,7 +46,7 @@ Parser::Parser():
 	parserAut.setTrans("tagStart",'?',"pi");
 	rs.setTrans("pi",S,"piS",limpaBuffer);
 	parserAut.getNode("pi").defaultTransition = [this](char ch) -> Automata::NodeType * { 
-		tagNameAdd(ch);
+		tagName.push_back(ch);
 		return &parserAut.getNode("pi");
 	};
 	rs.setTrans("piS",S,"piS");
@@ -75,7 +74,7 @@ Parser::Parser():
 	// element
 	rs.setTrans("!",NameStartChar,"element",[this](char s){ tagName = s; });
 	parserAut.getNode("element").defaultTransition = [this](char ch) -> Automata::NodeType * { 
-		tagNameAdd(ch);
+		tagName.push_back(ch);
 		return &parserAut.getNode("element");
 	};
 	rs.setTrans("element",S,"elementText",limpaBuffer);
@@ -91,7 +90,7 @@ Parser::Parser():
 		buffer.clear();
 	};
 	parserAut.getNode("![").defaultTransition = [this](char ch) -> Automata::NodeType * { 
-		tagNameAdd(ch);
+		tagName.push_back(ch);
 		return &parserAut.getNode("![");
 	};
 	parserAut.getNode("element[").defaultTransition = [this](char ch) -> Automata::NodeType * { 
@@ -118,7 +117,7 @@ Parser::Parser():
 	// xml tag
 	rs.setTrans("tagStart",NameStartChar,"tagName",addTagName);
 	parserAut.getNode("tagName").defaultTransition = [this](char ch) -> Automata::NodeType * { 
-		tagNameAdd(ch);
+		tagName.push_back(ch);
 		return &parserAut.getNode("tagName");
 	};
 	parserAut.setTrans("tagName",'/',"emptyTag");
@@ -192,7 +191,7 @@ Parser::Parser():
 	parserAut.setTrans("tagStart",'/',"tagEnd");
 	rs.setTrans("tagEnd",NameStartChar,"tagEndName",addTagName);
 	parserAut.getNode("tagEndName").defaultTransition = [this](char ch) -> Automata::NodeType * { 
-		tagNameAdd(ch);
+		tagName.push_back(ch);
 		return &parserAut.getNode("tagEndName");
 	};
 
