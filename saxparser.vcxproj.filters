@@ -14,30 +14,27 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\SaxParser.cpp">
+    <ClCompile Include="src\SaxParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\SaxIterators.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\libmongoose\mongotest\src\main.cpp">
+    <ClCompile Include="src\SaxIterators.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\SaxParser.h">
+    <ClInclude Include="src\SaxParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\xmlObjects.h">
+    <ClInclude Include="src\xmlObjects.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\SaxIterators.h">
+    <ClInclude Include="src\SaxIterators.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\util\automata.h">
+    <ClInclude Include="util\automata.h">
       <Filter>util</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\util\optional.h">
+    <ClInclude Include="util\optional.h">
       <Filter>util</Filter>
     </ClInclude>
   </ItemGroup>

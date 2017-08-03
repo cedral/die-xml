@@ -2,6 +2,7 @@ test.db
 ipch/
 Debug/
 Release/
+.vs/
 *.user
 *.opensdf
 *.sdf
