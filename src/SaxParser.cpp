@@ -242,6 +242,64 @@ struct EventStateFixer {
 	}
 };
 
+class error_category_impl : public std::error_category
+{
+  virtual const char *name() const _NOEXCEPT
+  {
+    return "sax::xml::parser::error_category";
+  };
+
+  virtual std::string message(int _Errval) const
+  {
+    switch (static_cast<Exception>(_Errval))
+    {
+    case Exception::ABORTED:
+      return "Operation aborted";
+    case Exception::PREMATURE_EOF:
+      return "End of file unexpected";
+    case Exception::MALFORMED:
+      return "XML is malformed";
+    case Exception::EXTRA:
+      return "Extra data found after document tag closed";
+    case Exception::TAG_MISMATCH:
+      return "unmatched closing tag";
+    case Exception::UNSUPPORTED:
+      return "xml conditionals not supported";
+    }
+  };
+
+  virtual std::error_condition
+    default_error_condition(int _Errval) const _NOEXCEPT
+  {
+    switch (static_cast<Exception>(_Errval))
+    {
+    case Exception::ABORTED:
+      return std::errc::operation_canceled;
+    case Exception::MALFORMED:
+      return std::errc::illegal_byte_sequence;
+    case Exception::PREMATURE_EOF:
+      return std::errc::io_error;
+    case Exception::EXTRA:
+      return std::errc::result_out_of_range;
+    case Exception::TAG_MISMATCH:
+      return std::errc::invalid_argument;
+    case Exception::UNSUPPORTED:
+      return std::errc::function_not_supported;
+    }
+  }
+};
+
+const std::error_category &error_category()
+{
+  static error_category_impl global_sax_category;
+  return global_sax_category;
+}
+
+inline std::error_code make_error_code(Exception e)
+{
+  return std::error_code(static_cast<int>(e), error_category());
+}
+
 bool Parser::parseContinue(std::istream & is)
 {
 	IteratorHelper ih(buffer,event_state,consumer,is);
@@ -250,7 +308,7 @@ bool Parser::parseContinue(std::istream & is)
 			int ch = is.get();
 			if( ch == std::char_traits<char>::eof() ) {
 				if( consumer.final() && parser_state == end_document ) return false;
-				throw PREMATURE_EOF;
+                                throw PREMATURE_EOF;
 			}
 			if( ! consumer.consume(ch) ) throw MALFORMED;
 
@@ -323,7 +381,7 @@ bool Parser::parseContinue(std::istream & is)
 		}
 	} catch(xml::Exception ex) {
 		if( ex == ABORTED ) return true;
-		throw;
+                throw std::system_error{ make_error_code(ex) };
 	}
 }
 
