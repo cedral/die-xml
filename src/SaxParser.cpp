@@ -242,147 +242,91 @@ struct EventStateFixer {
 	}
 };
 
-class error_category_impl : public std::error_category
-{
-  virtual const char *name() const _NOEXCEPT
-  {
-    return "sax::xml::parser::error_category";
-  };
-
-  virtual std::string message(int _Errval) const
-  {
-    switch (static_cast<Exception>(_Errval))
-    {
-    case Exception::ABORTED:
-      return "Operation aborted";
-    case Exception::PREMATURE_EOF:
-      return "End of file unexpected";
-    case Exception::MALFORMED:
-      return "XML is malformed";
-    case Exception::EXTRA:
-      return "Extra data found after document tag closed";
-    case Exception::TAG_MISMATCH:
-      return "unmatched closing tag";
-    case Exception::UNSUPPORTED:
-      return "xml conditionals not supported";
-    }
-  };
-
-  virtual std::error_condition
-    default_error_condition(int _Errval) const _NOEXCEPT
-  {
-    switch (static_cast<Exception>(_Errval))
-    {
-    case Exception::ABORTED:
-      return std::errc::operation_canceled;
-    case Exception::MALFORMED:
-      return std::errc::illegal_byte_sequence;
-    case Exception::PREMATURE_EOF:
-      return std::errc::io_error;
-    case Exception::EXTRA:
-      return std::errc::result_out_of_range;
-    case Exception::TAG_MISMATCH:
-      return std::errc::invalid_argument;
-    case Exception::UNSUPPORTED:
-      return std::errc::function_not_supported;
-    }
-  }
-};
-
-const std::error_category &error_category()
-{
-  static error_category_impl global_sax_category;
-  return global_sax_category;
-}
-
-inline std::error_code make_error_code(Exception e)
-{
-  return std::error_code(static_cast<int>(e), error_category());
-}
-
 bool Parser::parseContinue(std::istream & is)
 {
 	IteratorHelper ih(buffer,event_state,consumer,is);
-	try {
-		for(;;) {
-			int ch = is.get();
-			if( ch == std::char_traits<char>::eof() ) {
-				if( consumer.final() && parser_state == end_document ) return false;
-                                throw PREMATURE_EOF;
-			}
-			if( ! consumer.consume(ch) ) throw MALFORMED;
+	for(;;) {
+		int ch = is.get();
+		if( ch == std::char_traits<char>::eof() ) {
+			if( consumer.final() && parser_state == end_document ) 
+                          return false;
+                        throw PREMATURE_EOF;
+		}
+		if( ! consumer.consume(ch) ) 
+                  throw MALFORMED;
 
-			while( event_state != no_event ) {
-				EventStateFixer evtFixer(event_state);
+		while( event_state != no_event ) {
+			EventStateFixer evtFixer(event_state);
 
-				if( parser_state == end_document ) throw EXTRA;
+			if( parser_state == end_document ) 
+                          throw EXTRA;
 
-				switch(event_state) {
-				case empty_tag:
-					// o mesmo que start_tag, mas depois fará end_tag
-				case start_tag:
-				case start_attribute:
-					tags.push(tagName);
-					{	AttributeIterator attrIt(ih);
-						if( parser_state <= start_document ) {
-							parser_state = inside_document;
-							startDocFn(tagName,attrIt);
-						} else {
-							startElementFn(tagName,attrIt);
-						}
-					}
-
-					break;
-				case end_tag:
-					if( tags.empty() || tags.top() != tagName ) throw TAG_MISMATCH;
-					tags.pop();
-					if( tags.empty() ) {
-						parser_state = end_document;
-						endDocFn(tagName);
+			switch(event_state) {
+			case empty_tag:
+				// o mesmo que start_tag, mas depois fará end_tag
+			case start_tag:
+			case start_attribute:
+				tags.push(tagName);
+				{	AttributeIterator attrIt(ih);
+					if( parser_state <= start_document ) {
+						parser_state = inside_document;
+						startDocFn(tagName,attrIt);
 					} else {
-						endElementFn(tagName);
+						startElementFn(tagName,attrIt);
 					}
-					break;
-				case start_chars:
-					{	CharIterator charIt(ih);
-						charactersFn(charIt);
-					}
-					break;
-				case special_element:
-					if( tagName == "CDATA" ) {
-						CharIterator charIt(ih);
-						charactersFn(charIt);
-					} else {
-						throw UNSUPPORTED;				// TODO improve this to support conditionals
-					}
-					break;
-
-				case processing_instruction:
-					if( tagName == "xml" ) {
-						if( parser_state != prologue ) throw MALFORMED;
-						parser_state = doctype;
-						// TODO interpretar encoding e criar decoders
-					}
-					procInstrFn(tagName,buffer);
-					break;
-
-				case element_notation:
-					if( tagName == "DOCTYPE" ) {
-						if( parser_state != doctype ) throw MALFORMED;
-						parser_state = start_document;
-						// TODO interpretar DOCTYPE
-					}
-					elementFn(tagName,buffer);
-					break;
-
-				default: break;
 				}
+
+				break;
+			case end_tag:
+				if( tags.empty() || tags.top() != tagName ) 
+                                  throw TAG_MISMATCH;
+				tags.pop();
+				if( tags.empty() ) {
+					parser_state = end_document;
+					endDocFn(tagName);
+				} else {
+					endElementFn(tagName);
+				}
+				break;
+			case start_chars:
+				{	CharIterator charIt(ih);
+					charactersFn(charIt);
+				}
+				break;
+			case special_element:
+				if( tagName == "CDATA" ) {
+					CharIterator charIt(ih);
+					charactersFn(charIt);
+				} else {
+					throw UNSUPPORTED;				// TODO improve this to support conditionals
+				}
+				break;
+
+			case processing_instruction:
+				if( tagName == "xml" ) {
+					if( parser_state != prologue )
+                                          throw MALFORMED;
+					parser_state = doctype;
+					// TODO interpretar encoding e criar decoders
+				}
+				procInstrFn(tagName,buffer);
+				break;
+
+			case element_notation:
+				if( tagName == "DOCTYPE" ) {
+					if( parser_state != doctype )
+                                          throw MALFORMED;
+					parser_state = start_document;
+					// TODO interpretar DOCTYPE
+				}
+				elementFn(tagName,buffer);
+				break;
+
+			default: break;
 			}
 		}
-	} catch(xml::Exception ex) {
-		if( ex == ABORTED ) return true;
-                throw std::system_error{ make_error_code(ex) };
 	}
+        return true;
 }
 
 
